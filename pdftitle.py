@@ -19,11 +19,12 @@ from pdfminer import utils
 from pdfminer.pdffont import PDFUnicodeNotDefined
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
+from itertools import count
 
 VERBOSE = False
 MISSING_CHAR = None
 WITHIN_WORD_MOVE_LIMIT = 0
-ALGO = "original"
+ALGO = "originalv2"
 TITLE_CASE = False
 
 
@@ -424,7 +425,7 @@ class TextOnlyDevice(PDFDevice):
 
 
 # pylint: disable=too-many-branches, too-many-locals, too-many-statements
-def get_title_from_io(pdf_io):
+def get_title_from_io(pdf_io, min_length=1):
     parser = PDFParser(pdf_io)
     # if pdf is protected with a pwd, 2nd param here is password
     doc = PDFDocument(parser)
@@ -474,9 +475,34 @@ def get_title_from_io(pdf_io):
             block = found_blocks[0]
             title = ''.join(block[4]).strip()
 
+        elif ALGO == "originalv2":
+            for i in count(0):
+                # find max font size
+                max_tfs = sorted(
+                    list(map(lambda x: x[1], dev.blocks)), reverse=True)[i][1]
+                verbose('max_tfs: ', max_tfs)
+                # find max blocks with max font size
+                max_blocks = list(
+                    filter(lambda x: x[1] == max_tfs, dev.blocks))
+                # find the one with the highest y coordinate
+                # this is the most close to top
+                max_y = max(max_blocks, key=lambda x: x[3])[3]
+                verbose('max_y: ', max_y)
+                found_blocks = list(
+                    filter(lambda x: x[3] == max_y, max_blocks))
+                verbose('found blocks')
+
+                for b in found_blocks:
+                    verbose(b)
+                block = found_blocks[0]
+                title = ''.join(block[4]).strip()
+                if len(title) > min_length:
+                    break
+
         elif ALGO == "max2":
             # find max font size
-            all_tfs = sorted(list(map(lambda x: x[1], dev.blocks)), reverse=True)
+            all_tfs = sorted(
+                list(map(lambda x: x[1], dev.blocks)), reverse=True)
             max_tfs = all_tfs[0]
             verbose('max_tfs: ', max_tfs)
             selected_blocks = []
@@ -485,7 +511,7 @@ def get_title_from_io(pdf_io):
                 if max2_tfs == -1:
                     if b[1] == max_tfs:
                         selected_blocks.append(b)
-                    elif len(selected_blocks) > 0: # max is added
+                    elif len(selected_blocks) > 0:  # max is added
                         selected_blocks.append(b)
                         max2_tfs = b[1]
                 else:

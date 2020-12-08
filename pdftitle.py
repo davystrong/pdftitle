@@ -479,7 +479,7 @@ def get_title_from_io(pdf_io, min_length=1):
             for i in count(0):
                 # find max font size
                 max_tfs = sorted(
-                    list(map(lambda x: x[1], dev.blocks)), reverse=True)[i][1]
+                    list(map(lambda x: x[1], dev.blocks)), reverse=True)[i]
                 verbose('max_tfs: ', max_tfs)
                 # find max blocks with max font size
                 max_blocks = list(
